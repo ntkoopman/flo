@@ -25,7 +25,7 @@ dependencies {
   implementation("io.quarkus:quarkus-smallrye-openapi")
   implementation("org.flywaydb:flyway-database-postgresql")
   implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-  lint("com.facebook:ktfmt:0.46")
+  lint("com.facebook:ktfmt:0.53")
   lint("com.google.googlejavaformat:google-java-format:1.24.0")
   testImplementation("io.quarkus:quarkus-junit5")
   testImplementation("io.rest-assured:rest-assured")

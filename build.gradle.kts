@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 plugins {
   kotlin("jvm") version "2.0.21"
   kotlin("plugin.allopen") version "2.0.21"
-  kotlin("plugin.serialization") version "2.0.21"
+  kotlin("plugin.serialization") version "2.1.0"
   id("io.quarkus")
   id("spotless")
 }

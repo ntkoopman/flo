@@ -1,71 +1,134 @@
 # nem
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+This project uses Quarkus <https://quarkus.io/>. You will need JDK 21 and Docker to run it.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
-
-## Running the application in dev mode
-
-You can run your application in dev mode that enables live coding using:
+You can run the application in dev mode using:
 
 ```shell script
 ./gradlew quarkusDev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+Quarkus ships with a Dev UI, which is available at <http://localhost:8080/q/dev/>. Endpoint documentation is available at <http://localhost:8080/q/swagger-ui/>
 
-## Packaging and running the application
-
-The application can be packaged using:
+Build the application (and run the tests) using
 
 ```shell script
 ./gradlew build
 ```
 
-It produces the `quarkus-run.jar` file in the `build/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `build/quarkus-app/lib/` directory.
+You can run the formatter using `./gradlew spotlessApply`
 
-The application is now runnable using `java -jar build/quarkus-app/quarkus-run.jar`.
+Incidentally, if you are using IntelliJ IDEA you can just open the project since it fully supports Quarkus applications. You can then use the `examples.http` file to try some data.
 
-If you want to build an _über-jar_, execute the following command:
+Otherwise, you can upload some data using curl:
 
-```shell script
-./gradlew build -Dquarkus.package.jar.type=uber-jar
+```sheel script
+curl http://localhost:8080/meter_reading -XPOST -H'content-type: text/csv' --data-binary '@src/test/resources/large_file.csv'
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar build/*-runner.jar`.
+## Q1. What does your repository do?
 
-## Creating a native executable
+This repository contains a Quarkus application that has a single endpoint. Posting a NEM12 file to the endpoint will
+store the data in a PostgreSQL database.
 
-You can create a native executable using:
+## Q2. What are the advantages of the technologies you used for the project?
 
-```shell script
-./gradlew build -Dquarkus.native.enabled=true
-```
+The main advantage of using Quarkus for this assigment is that I'm familiar with it. In general, I would say a big
+advantage of Quarkus over e.g. Spring Boot is that it supports 'dev containers' out of the box: it will use
+Docker to start a database / message broker / kafka instance for you during development without any configuration.
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+By default Quarkus uses Java, but I switched to Kotlin because I understand that's what Flo uses. I would say the big
+advantage of Kotlin over modern Java is it's null handling, and allowing scope functions like `.let {}` to write code
+that reads from top to bottom. Of course, other people might see other advantages such as Kotlin Web / Kotlin Native and
+coroutines, but I think those are of less importance since other ecosystems are getting better as well
+(e.g. typescript / rust / virtual threads in Java).
 
-```shell script
-./gradlew build -Dquarkus.native.enabled=true -Dquarkus.native.container-build=true
-```
+### Q3. How is the code designed and structured?
 
-You can then execute your native executable with: `./build/nem-1.0.0-SNAPSHOT-runner`
+The code is structured using the standard Java / Kotlin conventions and "Vertical Slice Architecture". Since the project
+is small it's not really noticeable though. Traditionally, Java developers don't like putting DB calls directly into API
+endpoints, but I'm not a fan of overly abstracting code at the beginning, so I think it's fine like this for the initial
+phase. As the project grows some time should be spent on abstracting access to the data (and hopefully the company has
+some preferred way of doing so)
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/gradle-tooling>.
+## Q4. How does the design help to make the codebase readable and maintainable for other engineers?
 
-## Related Guides
+Following project conventions is good because:
 
-- REST ([guide](https://quarkus.io/guides/rest)): A Jakarta REST implementation utilizing build time processing and Vert.x. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it.
-- Kotlin ([guide](https://quarkus.io/guides/kotlin)): Write your services in Kotlin
-- Reactive PostgreSQL client ([guide](https://quarkus.io/guides/reactive-sql-clients)): Connect to the PostgreSQL database using the reactive pattern
+1. you don't need to fight the framework
+2. developers can just read the official documentation online, instead of having to maintain internal documentation
 
-## Provided Code
+The project comes with automatic code formatters which should avoid any discussions about tabs vs spaces. It also helps
+with PR readability, since most formatters are designed to produce minimal line changes.
 
-### REST
+Tests are set up to use the public endpoint(s). This promotes testing for actual business requirements and avoids
+coupling tests to internal code details. (If you only test business requirements using public endpoints then tests should
+never break even when doing large refactorings)
 
-Easily start your REST Web Services
+I didn't set up any linting on this project, but I would assume there would be some on a real project.
 
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
+## Q5. Discuss any design patterns, coding conventions, or documentation practices you implemented to enhance readability and maintainability.
 
+I'm a big fan of Domain Driven Design and hexagonal-like architecture, but this project is too small to really show this.
 
-245000 in 2m41s, so that's 132 million records per day
+There is a generated OpenAPI spec for the API, which should help other engineers when they need to integrate with the service.
+
+## Q6. What would you do better next time?
+
+There is definitely room for improvement in the comments. Especially linking back to the specification could be improved.
+
+The parser exceptions are not great. This is also seen in the tests where I had to resort to asserting on the exception message.
+I would probably create specific exceptions if I had more time.
+
+Error response are not great either. I like using RFC 9457 for error handling (there is a Quarkus plugin for this)
+because the 'application/problem' content-type makes it very easy to handle on the client.
+
+The code contains a bunch of TODOs because I either didn't think they were important for this assigment, or because
+there was some ambiguity. Most of the things that where unclear should have been resolved before even starting to code
+(things like "where does the data come from?", "do we reject duplicate data or ignore it?", "what are we going to do
+with this data in the first place?", and "security?"). For the sake of this assigment, I just chose to implement
+something instead of asking for clarification.
+
+## Q7. Reflect on areas where you see room for improvement and describe how you would approach them differently in future projects.
+
+One large issue with using a REST endpoint for this is that AWS load balancers have a fixed timeout of 60 seconds,
+making API calls inconvenient for long-running operations. In reality, I would probably not be writing a REST endpoint
+for this at all. I'm assuming the actual data would come from an SFTP server or through some kind of queue.
+(I have no idea what B2B e-Hub is)
+
+I chose Quarkus because of the limited time. I would not choose to use Quarkus + Kotlin for any serious project at this
+point in time and would either use Quarkus + Java or some other framework.
+
+I would definitely choose some kind of library for executing SQL, over plain JDBC.
+
+A quick test trying to insert 245000 interval data (200) records takes 2m41s on my machine, so that's 132 million
+records per day. Assuming an energy meter creates 1 record per day, this performance would probably be acceptable for
+now? While inserting data there is 100% disk usage, so getting a faster disk, multiple disk in raid, or partitioning the
+table space seems like good ways to quickly improve performance further. There might also be other ways to tune the DB
+that I'm not aware of, like tweaking checkpoint creation. Give the (small) size of the data, I would assume there is more
+performance to be had somewhere on the DB side.
+
+This project does not have any CI/CD workflows, but it should have.
+
+## Q8. What other ways could you have done this project?
+
+The possibilities here are really endless. This assigment does not have a business requirement, only a technical one.
+If I could do something differently, then it would be to get a business requirement so it's clear why I'm implementing
+this.
+
+## Q9. Explore alternative approaches or technologies that you considered during the development of the project.
+
+Since this project is so small, I considered writing it as a simple script in Typescript using Deno. Eventually, I
+decided I wanted to use Kotlin since I assume that's what used on the backend side in your company (and this looks
+more like a backend issue).
+
+Since Quarkus + Kotlin does still have some issues, I also briefly considered using a Kotlin native framework like
+Ktor. But given the limited time I decided to use something I'm familiar with.
+
+One of the pain points of using Kotlin with Quarkus is the ORM (Hibernate). I already knew I wanted to use a COPY
+statement, and most ORMs don't support this, I decided to skip any form of ORM for this project completely.
+
+I didn't want to touch the postgres requirement, but reading the spec I did wonder if it might be possible to just read
+the data directly from the NEM12 files when needed. I'm just brainstorming here, but it might be a good idea to keep
+the original data available somewhere anyway (as a backup?) + the format is not very complex + would fit into memory =
+should be pretty fast to just read from the filesystem and store in memory
